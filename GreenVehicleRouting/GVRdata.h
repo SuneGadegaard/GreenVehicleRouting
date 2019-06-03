@@ -25,6 +25,7 @@ private:
 	std::vector<std::vector<int>> time;
 	std::vector<std::vector<int>> batteryC;
 	std::vector<int> demand;
+	std::vector<std::string> addresses;
 	int vehicleCapacity;
 
 	bool generateDistanceMatrix ( );
@@ -32,6 +33,7 @@ private:
 public:
 	GVRdata ( );
 	bool readDataFile ( std::string &file );
+	bool readMatrixDataFile ( std::string& file );
 	int getDist ( int i, int j ) { return distance[i][j]; }
 	int getTime ( int i, int j ) { return time[i][j]; }
 	int getBatteryConsumption ( int i, int j ) { return batteryC[i][j]; }
@@ -44,4 +46,5 @@ public:
 	int getDemands ( int i ) { return demand[i]; }
 	int getVehicleCapacity ( ) { return vehicleCapacity; }
 	std::pair<int, int> getCoordinates ( int i ) { return coordinates[i]; }
+	void readAddressesFromFile ( std::string& addressFile );
 };

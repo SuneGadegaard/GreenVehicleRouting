@@ -320,7 +320,8 @@ void GVRmodel::addConnectivity ( )
 			for ( int j = 0; j < numOfNodes; ++j )
 			{
 				gFlow += g[i][j] - g[j][i];
-				model.add ( g[i][j] <= numOfCust * x[i][j] );
+				if ( i==0 ) model.add ( g[i][j] <= numOfCust * x[i][j] );
+				else model.add ( g[i][j] <= ( numOfCust - 1 )*x[i][j] );
 			}
 			if ( 0 != i ) model.add ( gFlow == -data->getDemands ( i ) );
 			else model.add ( gFlow == data->getDemands ( i ) );
@@ -371,10 +372,15 @@ void GVRmodel::generateBatteryFront ( )
 		int solNr = 1;
 		for ( auto sol : aFront )
 		{
-			std::string outFile ( "SolutionFile" );
+			std::string outFile ( "texSolutionFile" );
+			std::string outTourFile ( "tourSolutionFile" );
 			outFile += std::to_string ( solNr );
+			outTourFile += std::to_string ( solNr );
 			outFile +=  ".tex";
+			outTourFile += ".txt";
+
 			sol.printToTikZFormat ( data, outFile );
+			sol.makeTour ( data, outTourFile );
 			sol.printSolution ( );
 			++solNr;	
 		}

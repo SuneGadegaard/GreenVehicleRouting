@@ -236,6 +236,7 @@ void GVRmodel::addBoundsOnF ( )
 					nearestCharger[i - 1] = batteryConsumption;
 				}
 			}
+
 			std::cout << i << "<->" << nearestCharger[i - 1] << "\n";
 		}
 

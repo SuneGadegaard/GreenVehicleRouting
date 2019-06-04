@@ -8,7 +8,8 @@ GVRdata::GVRdata ( ) :
 	numOfVehicles ( 0 ),
 	batteryCap ( 0 ),
 	batteryConstant ( 1.0 ),
-	vehicleCapacity ( 0 )
+	vehicleCapacity ( 0 ),
+	dataIsFromMatrixFile ( false )
 {
 }
 
@@ -131,7 +132,7 @@ bool GVRdata::generateDistanceMatrix ( )
 				distance[i][j] =int ( sqrt ( double(distance[i][j]) ) + 0.5 );
 
 
-				time[i][j] = round ( ( 2.0 / 3.0 )*double ( distance[i][j] ) ) + serviceTime[i];
+				time[i][j] = round ( ( 2.0 / 3.0 )*double ( distance[i][j] ) );
 				batteryC[i][j] = round ( batteryConstant * double ( distance[i][j] ) );
 			}
 		}
@@ -149,7 +150,7 @@ bool GVRdata::readMatrixDataFile ( std::string & file )
 
 	std::ifstream InFile;
 	std::stringstream err;
-
+	dataIsFromMatrixFile = true;
 	try
 	{
 		InFile.open ( file );

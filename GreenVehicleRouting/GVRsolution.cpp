@@ -51,12 +51,15 @@ void GVRsolution::printToTikZFormat ( GVRdata* data , std::string& outFileName )
 	{
 		std::ofstream OutFile;
 		OutFile.open ( outFileName );
+		if ( !OutFile ) std::cout << "SHIT the output file is not open correctly!\n";
 		OutFile << "%% Total Time of solution : " << time << " max battery consumption : " << maxBatteryConsumption << "\n";
 		OutFile << "\\documentclass[12pt,a4paper]{standalone}\n\\usepackage[utf8]{inputenc}\n\\usepackage{tikz}\n\\usetikzlibrary{shapes.geometric,arrows}\n\\begin{document}\n\t\\begin{tikzpicture}[x = 8pt, y = 8pt]\n\t\t\\tikzstyle{arrow} = [thick, ->, >= stealth, line width = 1.5pt]\n";
 		
 		// Write out the coordinates in TikZ language
 		int numOfNodes = data->getNumOfNodes ( );
 		int numOfCust = data->getNumOfCustomers ( );
+
+
 		for ( int i = 0; i < numOfNodes; ++i )
 		{
 			int xCoord = data->getCoordinates ( i ).first;
@@ -101,16 +104,37 @@ void GVRsolution::makeTour ( GVRdata* data, std::string& tourFileName )
 		int numOfNodes = data->getNumOfNodes ( );
 		int numOfCust = data->getNumOfCustomers ( );
 
-		std::vector<std::vector<bool>> incidenceMatrix ( numOfNodes );
+		OutFile << "Optimal time of route : " << time << "\n";
+		OutFile << "Largest battery consumption : " << maxBatteryConsumption << "\n";
+		OutFile << "From\tTo\tBattery\tTravel-T\tTravel-D\n";
+		for ( auto& arc : f )
+		{
+			OutFile << arc.from << "\t"
+				<< arc.to
+				<< "\t"
+				<< arc.batteryConsumption
+				<< "\t"
+				<< data->getTime ( arc.from, arc.to )
+				<< "\t"
+				<< data->getDist ( arc.from, arc.to )
+				<< "\n";
+		}
+		OutFile.close ( );
+
+		/*std::vector<std::vector<bool>> incidenceMatrix ( numOfNodes );
 
 		for ( size_t i = 0; i < numOfNodes; ++i )
 		{
 			incidenceMatrix[i] = std::vector<bool> ( numOfNodes, false );
 		}
 
-		for ( auto arc : x )
+		for ( auto arc : f )
 		{
-			incidenceMatrix[arc.first][arc.second] = true;
+			incidenceMatrix[arc.from][arc.to] = true;
+		}
+		for ( auto arc : f )
+		{
+			std::cout << arc.from << "\t" << arc.to << "\t" << arc.batteryConsumption << "\n";
 		}
 
 		int curNode = 0, numOfCustVisited = 0;
@@ -126,8 +150,17 @@ void GVRsolution::makeTour ( GVRdata* data, std::string& tourFileName )
 			{
 				if ( incidenceMatrix[curNode][j] )
 				{
-					if ( j <= numOfCust && !nodesVisited[j] )
+					std::cout << curNode << "->" << j << std::endl;
+					std::cout << "j is a customer " << ( j <= numOfCust ) << std::endl;
+					std::cout << "j has been visited before " << nodesVisited[j] << std::endl;
+					std::cout << "Number of customers visisted : " << numOfCustVisited << std::endl;
+					std::cout << "Number of customers          : " << numOfCust << std::endl;
+
+					for ( auto o : order ) std::cout << o << "->";
+					std::cout << "\n";
+					if ( ( j <= numOfCust ) && ( false == nodesVisited[j] ) )
 					{
+						std::cout << "visiting node " << j << std::endl;
 						curNode = j;
 						order.push_back ( j );
 						nodesVisited[j] = true;
@@ -137,6 +170,7 @@ void GVRsolution::makeTour ( GVRdata* data, std::string& tourFileName )
 					else if ( j >= numOfCust + 1 )
 					{
 						curNode = j;
+						std::cout << "Changing the curNode to " << j << "\n";
 						order.push_back ( j );
 						nodesVisited[j] = true;
 						break;
@@ -176,7 +210,7 @@ void GVRsolution::makeTour ( GVRdata* data, std::string& tourFileName )
 		for ( auto arc : f )
 		{
 			OutFile << arc.from << "\t" << arc.to << "\t" << arc.batteryConsumption << "\n";
-		}
+		}*/
 	}
 	catch ( const std::exception& e)
 	{

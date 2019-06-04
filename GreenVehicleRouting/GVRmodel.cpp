@@ -117,7 +117,7 @@ void GVRmodel::addObjectiveFunction ( )
 			g[i] = IloNumVarArray ( env, numOfNodes, 0, data->getVehicleCapacity(), ILOFLOAT );
 			for ( int j = 0; j < numOfNodes; ++j )
 			{
-				obj += data->getTime ( i, j )*x[i][j];
+				obj += ( data->getTime ( i, j ) + data->getServiceTime ( i ) )*x[i][j];
 			}
 			// Remove diagonal as well
 			x[i][i].setUB ( 0 );
@@ -227,7 +227,7 @@ void GVRmodel::addBoundsOnF ( )
 		std::vector<int> nearestCharger ( numOfCust );
 		for ( int i = 1; i <= numOfCust; ++i )
 		{
-			nearestCharger[i - 1] = 0;// data->getBatteryConsumption ( i, 0 );
+			nearestCharger[i - 1] = data->getBatteryConsumption ( i, 0 );
 			for ( int j = numOfCust + 1; j < numOfNodes; ++j )
 			{
 				int batteryConsumption = data->getBatteryConsumption ( i, j );
@@ -236,8 +236,6 @@ void GVRmodel::addBoundsOnF ( )
 					nearestCharger[i - 1] = batteryConsumption;
 				}
 			}
-
-			std::cout << i << "<->" << nearestCharger[i - 1] << "\n";
 		}
 
 
@@ -367,9 +365,11 @@ void GVRmodel::generateBatteryFront ( )
 					f[i][j].setUB ( maxBatterryConsumption - 1 );
 				}
 			}
+			std::cout << "Max battery consumption : " << maxBatterryConsumption << std::endl;
 		}
 
 		int solNr = 1;
+		std::cout << "Creating the front files\n";
 		for ( auto sol : aFront )
 		{
 			std::string outFile ( "texSolutionFile" );
@@ -379,7 +379,7 @@ void GVRmodel::generateBatteryFront ( )
 			outFile +=  ".tex";
 			outTourFile += ".txt";
 
-			sol.printToTikZFormat ( data, outFile );
+			if ( !data->isDataFromMatrixFile ( ) ) sol.printToTikZFormat ( data, outFile );
 			sol.makeTour ( data, outTourFile );
 			sol.printSolution ( );
 			++solNr;	
@@ -399,7 +399,7 @@ void GVRmodel::solveModel ( std::string& texFileOutName, std::string& tourFileOu
 	solution.setSolution ( cplex, x, f, cplex.getObjValue ( ), f[1][2].getUB ( ) );
 	
 	
-	solution.printToTikZFormat ( data, texFileOutName );
+	if ( !data->isDataFromMatrixFile ( ) ) solution.printToTikZFormat ( data, texFileOutName );
 	
 	solution.makeTour ( data , tourFileOutName );
 }

@@ -19,6 +19,8 @@ private:
 	int batteryCap;
 	double batteryConstant;
 
+	bool dataIsFromMatrixFile;
+
 	std::vector<std::pair<int,int>> coordinates;
 	std::vector<int> serviceTime;
 	std::vector<std::vector<int>> distance;
@@ -47,4 +49,5 @@ public:
 	int getVehicleCapacity ( ) { return vehicleCapacity; }
 	std::pair<int, int> getCoordinates ( int i ) { return coordinates[i]; }
 	void readAddressesFromFile ( std::string& addressFile );
+	bool isDataFromMatrixFile ( ) { return dataIsFromMatrixFile; }
 };

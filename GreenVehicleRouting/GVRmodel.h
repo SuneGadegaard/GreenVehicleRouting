@@ -16,6 +16,7 @@ private:
 	IloVarMatrix x;		//! Arc variables. x[i][j]=1 if a vehicle traverses the arc (i,j). x[i][j]=0 otherwise
 	IloVarMatrix f;		//! If x[i][j]=0 => f[i][j]=0. Otherwise, f[i][j] is the energy consumed since last charging when arriving at node j
 	IloVarMatrix g;		//! If x[i][j]=0 => g[i][j]=0. Otherwise, g[i][j] equals the amount of flow of a commodity flowing on arc (i,j)
+	IloNumVarArray tau;	//! tau[i] = the time of arrival at customer node i
 	GVRdata* data;		//! Pointer to the GVRdata object holding the data for the green vehicle routing problem.
 	std::vector<std::vector< IloRange >> batteryUBs;	//! Vector of vectors of IloRanges used to hold the upper bounds for the battery consumption on an arc. Used in epsilon algorithm
 
@@ -61,6 +62,10 @@ private:
 	 */
 	void addConnectivity ( );
 
+
+	void addTimeVariables ( );
+
+	void cleanupTimeWindows ( IloExtractableArray& extractables );
 public:
 	GVRmodel ( );
 	~GVRmodel ( );
@@ -90,9 +95,22 @@ public:
 	/*! \brief Generates a frontier based on max-battery consumption
 	 *
 	 * Gradually lowers the battery level based on the current solution. Generates all weakly non-dominated solutions wrt. time and battery consumption
+	 * All individual solutions are written to a file numbered according to the ordering from left to right on the frontier 
 	 */
 	void generateBatteryFront ( );
 
+	/*! \brief Solves the model and writes the solution to a file
+	 *
+	 */
 	void solveModel ( std::string& texFileOutName, std::string& tourFileOutName  );
+
+	/*!\brief Adds time windows for each customer
+	 * 
+	 * Adds time window constraints for each customer.
+	 * \param windows Vector of pairs of int. windows[i].first is the earliest start time for node i, and windows[i].second is the latest start time.
+	 * \note The vector "windows" must have as many entries as there are customers + 1 (one for each customer and one for the depot. There should be no
+	 * time window for the charging stations.
+	 */
+	void addTimeWindows ( std::vector<std::pair<int, int>> windows );
 };
 

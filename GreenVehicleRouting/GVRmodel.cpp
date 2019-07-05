@@ -12,7 +12,9 @@ ILOUSERCUTCALLBACK2 ( cutter, IloVarMatrix, x, GVRdata*, data )
 	}
 }
 
-GVRmodel::GVRmodel ( ) : model ( env ), cplex ( model ), x ( env ), f ( env ), g ( env ), data ( nullptr )
+
+
+GVRmodel::GVRmodel ( ) : model ( env ), cplex ( model ), x ( env ), f ( env ), g ( env ), tau ( env ), data ( nullptr )
 {
 }
 
@@ -118,6 +120,7 @@ void GVRmodel::addObjectiveFunction ( )
 			for ( int j = 0; j < numOfNodes; ++j )
 			{
 				obj += ( data->getTime ( i, j ) + data->getServiceTime ( i ) )*x[i][j];
+
 			}
 			// Remove diagonal as well
 			x[i][i].setUB ( 0 );
@@ -318,8 +321,9 @@ void GVRmodel::addConnectivity ( )
 			for ( int j = 0; j < numOfNodes; ++j )
 			{
 				gFlow += g[i][j] - g[j][i];
-				if ( i==0 ) model.add ( g[i][j] <= numOfCust * x[i][j] );
-				else model.add ( g[i][j] <= ( numOfCust - 1 )*x[i][j] );
+				int cap = int ( ( 1.0/2.0 )*double ( numOfCust ) + 0.5 );
+				if ( i==0 ) model.add ( g[i][j] <= cap * x[i][j] );
+				else model.add ( g[i][j] <= ( cap - 1 )*x[i][j] );
 			}
 			if ( 0 != i ) model.add ( gFlow == -data->getDemands ( i ) );
 			else model.add ( gFlow == data->getDemands ( i ) );
@@ -333,6 +337,46 @@ void GVRmodel::addConnectivity ( )
 	{
 		std::cerr << "IloException in addConnectivity: " << ie.getMessage ( ) << std::endl;
 		ie.end ( );
+	}
+}
+
+void GVRmodel::addTimeVariables ( )
+{
+	int numOfCust = data->getNumOfCustomers ( );
+	int numOfNodes = data->getNumOfNodes ( );
+	int tmax = 1500;
+	tau = IloNumVarArray ( env, numOfCust + 1, 0, tmax, ILOFLOAT );
+	for ( int i = 0; i <= numOfCust; ++i )
+	{
+		if ( 0 == i )
+		{
+			for ( int j = 1; j <= numOfCust; ++j )
+			{
+				if ( i != j ) model.add ( tau[j] >= data->getTime ( 0, j )*x[0][j] );
+			}
+		}
+		else
+		{
+			for ( int j = 0; j <= numOfCust; ++j )
+			{
+				if ( i != j ) model.add ( tau[i] - tau[j] + ( data->getServiceTime ( i ) + data->getTime ( i, j ) + tmax )*x[i][j] <= tmax );
+			}
+		}
+	}
+
+
+	// Here goes the charging part
+	for ( int k = numOfCust+1; k <= numOfNodes; ++k )
+	{
+		for ( int i = 0; i = numOfCust; ++i )
+		{
+			for ( int j = 0; j <= numOfCust; ++j )
+			{
+				int tijk = data->getTime ( i, k ) + data->getServiceTime ( i ) + data->getServiceTime ( k ) + data->getTime ( k, i );
+				if ( 0 == i ) model.add ( -tau[j] + ( tijk + tmax )*( x[i][k] + x[k][j] ) <= 2 * tmax + tijk );
+				else model.add ( tau[i]-tau[j] + ( tijk + tmax )*( x[i][k] + x[k][j] ) <= 2 * tmax + tijk );
+			}
+		}
 	}
 }
 
@@ -402,4 +446,75 @@ void GVRmodel::solveModel ( std::string& texFileOutName, std::string& tourFileOu
 	if ( !data->isDataFromMatrixFile ( ) ) solution.printToTikZFormat ( data, texFileOutName );
 	
 	solution.makeTour ( data , tourFileOutName );
+}
+
+void GVRmodel::addTimeWindows ( std::vector<std::pair<int, int>> windows )
+{
+	IloExtractableArray extractables;
+
+	try
+	{
+		int numOfCustomers = data->getNumOfCustomers ( );
+		int numOfNodes = data->getNumOfNodes ( );
+		IloVarMatrix z = IloVarMatrix ( env, numOfCustomers + 1 );
+		tau = IloNumVarArray ( env, numOfCustomers, 0, IloInfinity, ILOFLOAT );
+		for ( int i = 0; i < numOfCustomers + 1; ++i )
+		{
+			z[i] = IloNumVarArray ( env, numOfCustomers + 1, 0, 1, ILOBOOL );
+		}
+		
+		for ( int i = 0; i < numOfCustomers + 1; ++i )
+		{
+			for ( int j = 0; j < numOfCustomers + 1; ++j )
+			{
+				extractables.add ( model.add ( z[i][j] >= x[i][j] ) );
+			}
+		}
+
+		IloExpr sumOverK ( env );
+		for ( int i = 0; i < numOfCustomers + 1; ++i )
+		{
+			for ( int j = 0; j < numOfCustomers + 1; ++j )
+			{
+				for ( int k = numOfCustomers + 1; k < numOfNodes; ++k )
+				{
+					sumOverK += x[i][k] + x[k][j];
+				}
+				extractables.add ( model.add ( 2 * z[i][j] <= 2 * x[i][j] + sumOverK ) );
+				sumOverK.clear ( );
+			}
+		}
+		sumOverK.end ( );
+		for ( int i = 1; i <= numOfCustomers; ++i )
+		{
+			extractables.add ( model.add ( tau[i] >= data->getTime ( 0, i ) ) );
+			extractables.add ( model.add ( tau[i] + data->getTime ( i, 0 )*x[i][0] <= windows[0].second ) );
+			tau[i].setBounds ( windows[i].first, windows[i].second );
+		}
+		tau[0].setBounds ( windows[0].first, windows[0].second );
+
+	}
+	catch ( const std::runtime_error& re )
+	{
+		std::cerr << "Runtime error in addTimeWindows : " << re.what ( ) << "\n";
+		cleanupTimeWindows( extractables );
+		return;
+	}
+	catch ( const std::exception& e )
+	{
+		std::cerr << "Runtime error in addTimeWindows : " << e.what ( ) << "\n";
+		cleanupTimeWindows ( extractables );
+		return;
+	}
+	catch ( ... )
+	{
+		std::cerr << "Unknown exception caught in addTimeWindows. No time windows are added";
+		cleanupTimeWindows ( extractables );
+		return;
+	}
+}
+
+void GVRmodel::cleanupTimeWindows ( IloExtractableArray& extractables )
+{
+	model.remove ( extractables );
 }

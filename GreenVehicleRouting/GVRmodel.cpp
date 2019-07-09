@@ -1,5 +1,6 @@
 #include"GVRmodel.h"
-
+#include<string>
+#include<string.h>
 ILOUSERCUTCALLBACK2 ( cutter, IloVarMatrix, x, GVRdata*, data )
 {
 	try
@@ -14,7 +15,7 @@ ILOUSERCUTCALLBACK2 ( cutter, IloVarMatrix, x, GVRdata*, data )
 
 
 
-GVRmodel::GVRmodel ( ) : model ( env ), cplex ( model ), x ( env ), f ( env ), g ( env ), tau ( env ), data ( nullptr )
+GVRmodel::GVRmodel ( ) : model ( env ), cplex ( model ), x ( env ), f ( env ), g ( env ), tau ( env ), z(env), data ( nullptr )
 {
 }
 
@@ -56,6 +57,22 @@ GVRmodel::~GVRmodel ( )
 			if ( g[i].getImpl ( ) )
 			{
 				g[i].end ( );
+			}
+		}
+	}
+
+	if ( tau.getImpl ( ) )
+	{
+		tau.end ( );
+	}
+
+	if ( z.getImpl ( ) )
+	{
+		for ( size_t i = 0; i < z.getSize ( ); ++i )
+		{
+			if ( z[i].getImpl ( ) )
+			{
+				z[i].end ( );
 			}
 		}
 	}
@@ -119,6 +136,21 @@ void GVRmodel::addObjectiveFunction ( )
 			g[i] = IloNumVarArray ( env, numOfNodes, 0, data->getVehicleCapacity(), ILOFLOAT );
 			for ( int j = 0; j < numOfNodes; ++j )
 			{
+				std::string stringName ( "x_" + std::to_string ( i ) + "_" + std::to_string ( j ) );
+				char charName[100];
+				strcpy_s ( charName, stringName.c_str ( ) );
+				x[i][j].setName ( charName );
+
+				stringName  = std::string( "f_" + std::to_string ( i ) + "_" + std::to_string ( j ) );
+				strcpy_s ( charName, stringName.c_str ( ) );
+				f[i][j].setName ( "charName" );
+
+				stringName = std::string ( "g_" + std::to_string ( i ) + "_" + std::to_string ( j ) );
+				strcpy_s ( charName, stringName.c_str ( ) );
+				g[i][j].setName ( charName );
+			};
+			for ( int j = 0; j < numOfNodes; ++j )
+			{
 				obj += ( data->getTime ( i, j ) + data->getServiceTime ( i ) )*x[i][j];
 
 			}
@@ -129,6 +161,18 @@ void GVRmodel::addObjectiveFunction ( )
 		}
 		model.add ( IloMinimize ( env, obj ) );
 		obj.end ( );
+
+		// Eliminate all connections between two chargers:
+		int numOfCustomers = data->getNumOfCustomers ( );
+		for ( int i = numOfCustomers + 1; i < numOfNodes; ++i )
+		{
+			x[0][i].setUB ( 0 );
+			x[i][0].setUB ( 0 );
+			for ( int j = numOfCustomers + 1; j < numOfNodes; ++j )
+			{
+				x[i][j].setUB ( 0 );
+			}
+		}
 	}
 	catch ( IloException& ie )
 	{
@@ -314,6 +358,7 @@ void GVRmodel::addConnectivity ( )
 		int numOfNodes = data->getNumOfNodes ( );
 		int numOfCust = data->getNumOfCustomers ( );
 		int batteryCap = data->getBatteryCap ( );
+		int cap = data->getVehicleCapacity();
 
 		IloExpr gFlow ( env );
 		for ( int i = 0; i < numOfNodes; ++i )
@@ -321,9 +366,9 @@ void GVRmodel::addConnectivity ( )
 			for ( int j = 0; j < numOfNodes; ++j )
 			{
 				gFlow += g[i][j] - g[j][i];
-				int cap = int ( ( 1.0/2.0 )*double ( numOfCust ) + 0.5 );
+				
 				if ( i==0 ) model.add ( g[i][j] <= cap * x[i][j] );
-				else model.add ( g[i][j] <= ( cap - 1 )*x[i][j] );
+				else model.add ( g[i][j] <=  cap * x[i][j] );
 			}
 			if ( 0 != i ) model.add ( gFlow == -data->getDemands ( i ) );
 			else model.add ( gFlow == data->getDemands ( i ) );
@@ -340,46 +385,7 @@ void GVRmodel::addConnectivity ( )
 	}
 }
 
-void GVRmodel::addTimeVariables ( )
-{
-	int numOfCust = data->getNumOfCustomers ( );
-	int numOfNodes = data->getNumOfNodes ( );
-	int tmax = 1500;
-	tau = IloNumVarArray ( env, numOfCust + 1, 0, tmax, ILOFLOAT );
-	for ( int i = 0; i <= numOfCust; ++i )
-	{
-		if ( 0 == i )
-		{
-			for ( int j = 1; j <= numOfCust; ++j )
-			{
-				if ( i != j ) model.add ( tau[j] >= data->getTime ( 0, j )*x[0][j] );
-			}
-		}
-		else
-		{
-			for ( int j = 0; j <= numOfCust; ++j )
-			{
-				if ( i != j ) model.add ( tau[i] - tau[j] + ( data->getServiceTime ( i ) + data->getTime ( i, j ) + tmax )*x[i][j] <= tmax );
-			}
-		}
-	}
-
-
-	// Here goes the charging part
-	for ( int k = numOfCust+1; k <= numOfNodes; ++k )
-	{
-		for ( int i = 0; i = numOfCust; ++i )
-		{
-			for ( int j = 0; j <= numOfCust; ++j )
-			{
-				int tijk = data->getTime ( i, k ) + data->getServiceTime ( i ) + data->getServiceTime ( k ) + data->getTime ( k, i );
-				if ( 0 == i ) model.add ( -tau[j] + ( tijk + tmax )*( x[i][k] + x[k][j] ) <= 2 * tmax + tijk );
-				else model.add ( tau[i]-tau[j] + ( tijk + tmax )*( x[i][k] + x[k][j] ) <= 2 * tmax + tijk );
-			}
-		}
-	}
-}
-
+//=====================================================================================//
 
 void GVRmodel::generateBatteryFront ( )
 {
@@ -400,7 +406,7 @@ void GVRmodel::generateBatteryFront ( )
 				}
 			}
 			GVRsolution solution = GVRsolution ( );
-			solution.setSolution ( cplex, x, f, cplex.getObjValue ( ), maxBatterryConsumption );
+			solution.setSolution ( cplex, x, f, tau, cplex.getObjValue ( ), maxBatterryConsumption );
 			aFront.push_back ( solution );
 			for ( int i = 0; i < numOfNodes; ++i )
 			{
@@ -436,62 +442,130 @@ void GVRmodel::generateBatteryFront ( )
 	}
 }
 
+//=====================================================================================//
 void GVRmodel::solveModel ( std::string& texFileOutName, std::string& tourFileOutName )
 {
-	cplex.solve ( );
-	GVRsolution solution = GVRsolution ( );
-	solution.setSolution ( cplex, x, f, cplex.getObjValue ( ), f[1][2].getUB ( ) );
+	cplex.exportModel ( "Model.lp" );
+	if ( cplex.solve ( ) )
+	{
+		std::cout << "============= best obj value : " << cplex.getObjValue ( ) << "=============\n";
+		GVRsolution solution = GVRsolution ( );
+		solution.setSolution ( cplex, x, f, tau, cplex.getObjValue ( ), f[1][2].getUB ( ) );
+
+		if ( !data->isDataFromMatrixFile ( ) ) solution.printToTikZFormat ( data, texFileOutName );
+
+		solution.makeTour ( data, tourFileOutName );
+	}
+	else
+	{
+		std::cout << "============= Did not solve model =============\n";
+	}
+
 	
-	
-	if ( !data->isDataFromMatrixFile ( ) ) solution.printToTikZFormat ( data, texFileOutName );
-	
-	solution.makeTour ( data , tourFileOutName );
 }
 
+//=====================================================================================//
 void GVRmodel::addTimeWindows ( std::vector<std::pair<int, int>> windows )
 {
-	IloExtractableArray extractables;
+	IloExtractableArray extractables (env);
 
 	try
 	{
 		int numOfCustomers = data->getNumOfCustomers ( );
 		int numOfNodes = data->getNumOfNodes ( );
-		IloVarMatrix z = IloVarMatrix ( env, numOfCustomers + 1 );
-		tau = IloNumVarArray ( env, numOfCustomers, 0, IloInfinity, ILOFLOAT );
-		for ( int i = 0; i < numOfCustomers + 1; ++i )
+		z = IloVarMatrix ( env, numOfCustomers + 1 );
+		tau = IloNumVarArray ( env, numOfCustomers + 1, 0, IloInfinity, ILOFLOAT );
+	
+		for ( int i = 0; i <= numOfCustomers; ++i )
 		{
-			z[i] = IloNumVarArray ( env, numOfCustomers + 1, 0, 1, ILOBOOL );
+			std::string stringName ( "tau_" + std::to_string ( i ) );
+			char charName[100];
+			strcpy_s ( charName, stringName.c_str ( ) );
+			tau[i].setName ( charName );
 		}
-		
+
 		for ( int i = 0; i < numOfCustomers + 1; ++i )
 		{
-			for ( int j = 0; j < numOfCustomers + 1; ++j )
+			z[i] = IloNumVarArray ( env, numOfCustomers + 1, 0, 1, ILOBOOL);
+			
+			for ( int j = 0; j <= numOfCustomers; ++j )
+			{
+				std::string stringName ( "z_" + std::to_string ( i ) + "_" + std::to_string ( j ) );
+				char charName[100];
+				strcpy_s ( charName, stringName.c_str ( ) );
+				z[i][j].setName ( charName );
+			}
+		}
+		model.add ( tau[0] == 0 );
+		std::cout << "First stop\n";
+		for ( int i = 1; i <= numOfCustomers; ++i )
+		{
+			for ( int j = 1; j <= numOfCustomers; ++j )
 			{
 				extractables.add ( model.add ( z[i][j] >= x[i][j] ) );
 			}
 		}
-
+		std::cout << "Second stop\n";
 		IloExpr sumOverK ( env );
-		for ( int i = 0; i < numOfCustomers + 1; ++i )
+		for ( int i = 1; i <= numOfCustomers; ++i )
 		{
-			for ( int j = 0; j < numOfCustomers + 1; ++j )
+			for ( int j = 1; j <= numOfCustomers; ++j )
 			{
 				for ( int k = numOfCustomers + 1; k < numOfNodes; ++k )
 				{
-					sumOverK += x[i][k] + x[k][j];
+					sumOverK += ( x[i][k] + x[k][j] );
 				}
 				extractables.add ( model.add ( 2 * z[i][j] <= 2 * x[i][j] + sumOverK ) );
+				//model.add ( 2 * z[i][j] <= 2 * x[i][j] + sumOverK );
 				sumOverK.clear ( );
 			}
 		}
+		std::cout << "Third stop\n";
 		sumOverK.end ( );
 		for ( int i = 1; i <= numOfCustomers; ++i )
 		{
+			// Cannot arrive at customer i earlier than if we go directly from the depot
 			extractables.add ( model.add ( tau[i] >= data->getTime ( 0, i ) ) );
-			extractables.add ( model.add ( tau[i] + data->getTime ( i, 0 )*x[i][0] <= windows[0].second ) );
+			// The time we arrive at customer i cannot be later than we can return to the depot again
+			extractables.add ( model.add ( tau[i] + ( data->getTime ( i, 0 ) + data->getServiceTime ( i ) )*x[i][0] <= windows[0].second ) );
 			tau[i].setBounds ( windows[i].first, windows[i].second );
 		}
 		tau[0].setBounds ( windows[0].first, windows[0].second );
+
+		std::cout << "Fourth stop\n";
+		// Add time accumulation constraints
+		IloExpr zSum ( env ), zSumRev ( env );
+		for ( int i = 1; i <= numOfCustomers; ++i )
+		{
+			z[i][i].setBounds ( 0, 0 );
+			std::cout << "Fifth stop i=" <<i <<"\n" ;
+			for ( int j = 1; j <= numOfCustomers; ++j )
+			{
+				if ( i != j )
+				{
+					extractables.add ( model.add ( tau[j] >= tau[i] + ( data->getTime ( i, j ) + data->getServiceTime ( i ) )*x[i][j] - windows[0].second*( 1 - x[i][j] ) ) );
+
+					for ( int k = numOfCustomers + 1; k < numOfNodes; ++k )
+					{
+						int fromItoK = data->getTime ( i, k ) + data->getServiceTime ( i );
+						int fromKtoJ = data->getTime ( k, j ) + data->getServiceTime ( k );
+						int bigM = windows[0].second - data->getTime ( i, 0 ) - windows[j].first + data->getTime ( i, k ) + data->getTime ( k, j );
+						extractables.add ( model.add ( tau[j] >= tau[i] + fromItoK * x[i][k] + fromKtoJ * x[k][j] - bigM * ( 1 - z[i][j] ) ) );
+					}
+				}
+				zSum += z[i][j];
+				zSumRev += z[j][i];
+			}
+			extractables.add ( model.add ( zSum + x[i][0] == 1 ) );
+			extractables.add ( model.add ( zSumRev + x[0][i] == 1 ) );
+			zSum.clear ( );
+			zSumRev.clear ( );
+		}
+		
+		zSum.end ( );
+		zSumRev.end ( );
+
+		
 
 	}
 	catch ( const std::runtime_error& re )

@@ -5,7 +5,7 @@ GVRsolution::GVRsolution ( )
 {
 }
 
-void GVRsolution::setSolution ( IloCplex& cplex, IloVarMatrix & xSol, IloVarMatrix & fSol, int theTime, int batteryCapacity )
+void GVRsolution::setSolution ( IloCplex& cplex, IloVarMatrix & xSol, IloVarMatrix & fSol, IloNumVarArray& tauSol, int theTime, int batteryCapacity )
 {
 	try
 	{
@@ -25,6 +25,10 @@ void GVRsolution::setSolution ( IloCplex& cplex, IloVarMatrix & xSol, IloVarMatr
 					f.push_back ( bf );
 				}
 			}
+		}
+		for ( size_t i = 0; i < tauSol.getSize ( ); ++i )
+		{
+			startAtNode.push_back ( cplex.getValue ( tauSol[i] ) );
 		}
 	}
 	catch ( const std::exception& e )
@@ -106,7 +110,7 @@ void GVRsolution::makeTour ( GVRdata* data, std::string& tourFileName )
 
 		OutFile << "Optimal time of route : " << time << "\n";
 		OutFile << "Largest battery consumption : " << maxBatteryConsumption << "\n";
-		OutFile << "From\tTo\tBattery\tTravel-T\tTravel-D\n";
+		OutFile << "From\tTo\tBattery\tTravel-T\tTravel-D\t StartAtToNode\n";
 		for ( auto& arc : f )
 		{
 			OutFile << arc.from << "\t"
@@ -117,7 +121,15 @@ void GVRsolution::makeTour ( GVRdata* data, std::string& tourFileName )
 				<< data->getTime ( arc.from, arc.to )
 				<< "\t"
 				<< data->getDist ( arc.from, arc.to )
-				<< "\n";
+				<< "\t";
+			if ( arc.to > startAtNode.size ( ) )
+			{
+				OutFile << "---\n";
+			}
+			else
+			{
+				OutFile << startAtNode[arc.to] << "\n";
+			}
 		}
 		OutFile.close ( );
 

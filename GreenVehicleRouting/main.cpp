@@ -33,11 +33,20 @@ int main ( int argc, char* argv[])
 		GVRmodel model = GVRmodel ( );
 		model.setData ( data );
 
+		std::vector<std::pair<int, int>> windows;
+		for ( int i = 0; i <= data->getNumOfCustomers ( ); ++i )
+		{
+			windows.push_back ( std::pair<int,int> ( 0, 480 ) );
+		}
+
 		model.setUpProblem ( );
-		model.generateBatteryFront ( );
-		/*std::string texFile ( "texOutFile.tex" );
+		std::cout << "Before adding time windows\n";
+		model.addTimeWindows ( windows );
+		std::cout << "After adding time windows\n";
+		//model.generateBatteryFront ( );
+		std::string texFile ( "texOutFile.tex" );
 		std::string tourFile ( "tourOutFile.txt" );
-		model.solveModel ( texFile, tourFile );*/
+		model.solveModel ( texFile, tourFile );
 
 		delete data;
 		return true;

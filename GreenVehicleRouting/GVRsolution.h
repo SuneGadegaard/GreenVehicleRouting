@@ -20,10 +20,11 @@ private:
 	int maxBatteryConsumption;
 	std::vector<std::pair<int, int>> x;
 	std::vector<batteryFlow> f;
+	std::vector<int> startAtNode;
 	std::vector<int> tour;
 public:
 	GVRsolution ( );
-	void setSolution ( IloCplex& cplex, IloVarMatrix& xSol, IloVarMatrix& fSol, int time, int batteryCapacity );
+	void setSolution ( IloCplex& cplex, IloVarMatrix& xSol, IloVarMatrix& fSol, IloNumVarArray& tauSol,  int time, int batteryCapacity );
 	void printSolution ( );
 	void makeTour ( GVRdata* data, std::string& tourFileName );
 	void printToTikZFormat ( GVRdata* data, std::string& outFileName );

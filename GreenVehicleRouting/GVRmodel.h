@@ -17,6 +17,7 @@ private:
 	IloVarMatrix f;		//! If x[i][j]=0 => f[i][j]=0. Otherwise, f[i][j] is the energy consumed since last charging when arriving at node j
 	IloVarMatrix g;		//! If x[i][j]=0 => g[i][j]=0. Otherwise, g[i][j] equals the amount of flow of a commodity flowing on arc (i,j)
 	IloNumVarArray tau;	//! tau[i] = the time of arrival at customer node i
+	IloVarMatrix z;		//! z[i][j] = 1 if customer i is the last customer visited before customer j
 	GVRdata* data;		//! Pointer to the GVRdata object holding the data for the green vehicle routing problem.
 	std::vector<std::vector< IloRange >> batteryUBs;	//! Vector of vectors of IloRanges used to hold the upper bounds for the battery consumption on an arc. Used in epsilon algorithm
 
@@ -61,9 +62,6 @@ private:
 	 * Adds connectivity constraints to the model in the form of a one-commedity flow
 	 */
 	void addConnectivity ( );
-
-
-	void addTimeVariables ( );
 
 	void cleanupTimeWindows ( IloExtractableArray& extractables );
 public:

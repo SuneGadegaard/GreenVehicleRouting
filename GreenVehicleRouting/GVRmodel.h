@@ -20,6 +20,8 @@ private:
 	IloVarMatrix z;		//! z[i][j] = 1 if customer i is the last customer visited before customer j
 	GVRdata* data;		//! Pointer to the GVRdata object holding the data for the green vehicle routing problem.
 	std::vector<std::vector< IloRange >> batteryUBs;	//! Vector of vectors of IloRanges used to hold the upper bounds for the battery consumption on an arc. Used in epsilon algorithm
+	
+
 
 	/*! \brief Adds the objective function 
 	 * 
@@ -62,6 +64,8 @@ private:
 	 * Adds connectivity constraints to the model in the form of a one-commedity flow
 	 */
 	void addConnectivity ( );
+
+	void fixVariables ( );
 
 	void cleanupTimeWindows ( IloExtractableArray& extractables );
 public:

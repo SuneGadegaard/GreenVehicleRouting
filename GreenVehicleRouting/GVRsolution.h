@@ -28,5 +28,6 @@ public:
 	void printSolution ( );
 	void makeTour ( GVRdata* data, std::string& tourFileName );
 	void printToTikZFormat ( GVRdata* data, std::string& outFileName );
+	int getTime ( ) { return time; }
 };
 

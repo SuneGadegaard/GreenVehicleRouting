@@ -57,7 +57,7 @@ void GVRsolution::printToTikZFormat ( GVRdata* data , std::string& outFileName )
 		OutFile.open ( outFileName );
 		if ( !OutFile ) std::cout << "SHIT the output file is not open correctly!\n";
 		OutFile << "%% Total Time of solution : " << time << " max battery consumption : " << maxBatteryConsumption << "\n";
-		OutFile << "\\documentclass[12pt,a4paper]{standalone}\n\\usepackage[utf8]{inputenc}\n\\usepackage{tikz}\n\\usetikzlibrary{shapes.geometric,arrows}\n\\begin{document}\n\t\\begin{tikzpicture}[x = 8pt, y = 8pt]\n\t\t\\tikzstyle{arrow} = [thick, ->, >= stealth, line width = 1.5pt]\n";
+		OutFile << "\\documentclass[12pt,a4paper]{standalone}\n\\usepackage[utf8]{inputenc}\n\\usepackage{tikz}\n\\usetikzlibrary{shapes.geometric,arrows}\n\\begin{document}\n\t\\begin{tikzpicture}[x = 15pt, y = 15pt]\n\t\t\\tikzstyle{arrow} = [thick, ->, >= stealth, line width = 1.5pt]\n";
 		
 		// Write out the coordinates in TikZ language
 		int numOfNodes = data->getNumOfNodes ( );
@@ -66,8 +66,8 @@ void GVRsolution::printToTikZFormat ( GVRdata* data , std::string& outFileName )
 
 		for ( int i = 0; i < numOfNodes; ++i )
 		{
-			int xCoord = data->getCoordinates ( i ).first;
-			int yCoord = data->getCoordinates ( i ).second;
+			double xCoord = data->getCoordinates ( i ).first;
+			double yCoord = data->getCoordinates ( i ).second;
 			if ( 0 == i )
 			{
 				OutFile << "\t\t\\node[regular polygon,regular polygon sides=4, draw] (0) at (" << xCoord << "," << yCoord << "){" << i << "};\n";
@@ -104,6 +104,15 @@ void GVRsolution::makeTour ( GVRdata* data, std::string& tourFileName )
 	{
 		std::ofstream OutFile;
 		OutFile.open ( tourFileName );
+		
+		if ( OutFile )
+		{
+			std::cout << "Tour file is open \n";
+		}
+		else
+		{
+			std::cout << "Tour file is not open \n";
+		}
 
 		int numOfNodes = data->getNumOfNodes ( );
 		int numOfCust = data->getNumOfCustomers ( );
@@ -113,6 +122,7 @@ void GVRsolution::makeTour ( GVRdata* data, std::string& tourFileName )
 		OutFile << "From\tTo\tBattery\tTravel-T\tTravel-D\t StartAtToNode\n";
 		for ( auto& arc : f )
 		{
+			std::cout << "writing stuff to the outfile\n";
 			OutFile << arc.from << "\t"
 				<< arc.to
 				<< "\t"
@@ -122,6 +132,7 @@ void GVRsolution::makeTour ( GVRdata* data, std::string& tourFileName )
 				<< "\t"
 				<< data->getDist ( arc.from, arc.to )
 				<< "\t";
+			std::cout << "Before the if statements\n";
 			if ( arc.to > startAtNode.size ( ) )
 			{
 				OutFile << "---\n";
@@ -130,99 +141,11 @@ void GVRsolution::makeTour ( GVRdata* data, std::string& tourFileName )
 			{
 				OutFile << startAtNode[arc.to] << "\n";
 			}
+			std::cout << "After writing to file\n";
 		}
 		OutFile.close ( );
 
-		/*std::vector<std::vector<bool>> incidenceMatrix ( numOfNodes );
 
-		for ( size_t i = 0; i < numOfNodes; ++i )
-		{
-			incidenceMatrix[i] = std::vector<bool> ( numOfNodes, false );
-		}
-
-		for ( auto arc : f )
-		{
-			incidenceMatrix[arc.from][arc.to] = true;
-		}
-		for ( auto arc : f )
-		{
-			std::cout << arc.from << "\t" << arc.to << "\t" << arc.batteryConsumption << "\n";
-		}
-
-		int curNode = 0, numOfCustVisited = 0;
-
-		std::vector<int> order;
-		std::vector<int> nodesVisited ( numOfNodes, false );
-		nodesVisited[0] = true;
-		order.push_back ( 0 );
-		
-		while ( numOfCustVisited < numOfCust )
-		{
-			for ( int j = 1; j < numOfNodes; ++j )
-			{
-				if ( incidenceMatrix[curNode][j] )
-				{
-					std::cout << curNode << "->" << j << std::endl;
-					std::cout << "j is a customer " << ( j <= numOfCust ) << std::endl;
-					std::cout << "j has been visited before " << nodesVisited[j] << std::endl;
-					std::cout << "Number of customers visisted : " << numOfCustVisited << std::endl;
-					std::cout << "Number of customers          : " << numOfCust << std::endl;
-
-					for ( auto o : order ) std::cout << o << "->";
-					std::cout << "\n";
-					if ( ( j <= numOfCust ) && ( false == nodesVisited[j] ) )
-					{
-						std::cout << "visiting node " << j << std::endl;
-						curNode = j;
-						order.push_back ( j );
-						nodesVisited[j] = true;
-						++numOfCustVisited;
-						break;
-					}
-					else if ( j >= numOfCust + 1 )
-					{
-						curNode = j;
-						std::cout << "Changing the curNode to " << j << "\n";
-						order.push_back ( j );
-						nodesVisited[j] = true;
-						break;
-					}
-				}
-			}
-		}
-
-		while ( curNode != 0 )
-		{
-			for ( int j = 0; j < numOfNodes; ++j )
-			{
-				if ( incidenceMatrix[curNode][j] )
-				{
-					curNode = j;
-					order.push_back ( j );
-					nodesVisited[j] = true;
-					break;
-				}
-			}
-		}
-
-		OutFile << "Optimal tour is given by : \n";
-		for ( auto node = order.begin ( ); node != order.end ( ); ++node )
-		{
-			if ( std::next ( node ) == order.end ( ) )
-			{
-				OutFile << *node << "\n";
-			}
-			else
-			{
-				OutFile << *node << "->";
-			}
-		}
-		OutFile << "\n\nBattery consumption on each arc (at arrival):\n";
-		OutFile << "From\tTo\tBattery consumption\n";
-		for ( auto arc : f )
-		{
-			OutFile << arc.from << "\t" << arc.to << "\t" << arc.batteryConsumption << "\n";
-		}*/
 	}
 	catch ( const std::exception& e)
 	{

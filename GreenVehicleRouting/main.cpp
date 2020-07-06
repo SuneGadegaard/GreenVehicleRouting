@@ -1,5 +1,8 @@
 #include"GVRdata.h"
 #include"GVRmodel.h"
+
+#include "GVRPKoc.h"
+
 #include<iostream>
 int main ( int argc, char* argv[])
 {
@@ -14,7 +17,7 @@ int main ( int argc, char* argv[])
 		{
 			// Use the matrix file format
 			std::cout << "In the right bracket\n";
-			dataReadCorretctly = data->readMatrixDataFile ( file );
+			dataReadCorretctly = data->readCondensedFile ( file );
 		}
 		else
 		{
@@ -27,7 +30,7 @@ int main ( int argc, char* argv[])
 		}
 
 
-
+		
 
 
 		GVRmodel model = GVRmodel ( );
@@ -36,7 +39,7 @@ int main ( int argc, char* argv[])
 		std::vector<std::pair<int, int>> windows;
 		for ( int i = 0; i <= data->getNumOfCustomers ( ); ++i )
 		{
-			windows.push_back ( std::pair<int,int> ( 0, 480 ) );
+			windows.push_back ( std::pair<int,int> ( 0, 100000 ) );
 		}
 
 		model.setUpProblem ( );
@@ -46,7 +49,13 @@ int main ( int argc, char* argv[])
 		//model.generateBatteryFront ( );
 		std::string texFile ( "texOutFile.tex" );
 		std::string tourFile ( "tourOutFile.txt" );
-		model.solveModel ( texFile, tourFile );
+		//model.solveModel ( texFile, tourFile );
+		std::cout << "Generating the battery front\n";
+		//model.solveModel(texFile, tourFile );
+		model.generateBatteryFront ( );
+
+
+
 
 		delete data;
 		return true;
